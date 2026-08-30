@@ -119,32 +119,10 @@ class DashboardTab(ttk.Frame):
         self._bg_main_widgets.append(ctrl_frame)
         ctrl_frame.pack(side="right")
 
-        self._month_lbl = tk.Label(
-            ctrl_frame, text="Month:",
-            bg=TM.c("bg_main"), fg=TM.c("text_secondary"), font=FONTS["body"],
-        )
-        self._month_lbl.pack(side="left", padx=(0, 6))
-        self._text_s_labels.append(self._month_lbl)
-        self._bg_main_widgets.append(self._month_lbl)
-
-        self._month_var = tk.StringVar(
-            value=f"{calendar.month_name[self._month]} {self._year}"
-        )
-        month_options = (
-            [f"{calendar.month_name[m]} {self._year}" for m in range(1, 13)]
-            + [f"{calendar.month_name[m]} {self._year - 1}" for m in range(1, 13)]
-        )
-        ttk.Combobox(
-            ctrl_frame, textvariable=self._month_var,
-            values=month_options, state="readonly", width=18, font=FONTS["body"],
-        ).pack(side="left", padx=(0, 8))
-        self._month_var.trace_add(
-            "write", lambda *_: self._on_month_change()
-        )
         ttk.Button(
             ctrl_frame, text=f"🔄{_ICON_SP} Refresh",
             style="Secondary.TButton", command=self.refresh
-        ).pack(side="left")
+        ).pack(side="left", padx=(0, 8))
 
         ttk.Button(
             ctrl_frame, text=f"📄{_ICON_SP} Download PDF",
