@@ -119,6 +119,27 @@ class DashboardTab(ttk.Frame):
         self._bg_main_widgets.append(ctrl_frame)
         ctrl_frame.pack(side="right")
 
+        # Month selector
+        month_frame = tk.Frame(ctrl_frame, bg=TM.c("bg_main"))
+        self._bg_main_widgets.append(month_frame)
+        month_frame.pack(side="left", padx=(0, 16))
+
+        tk.Label(
+            month_frame, text="Month:",
+            bg=TM.c("bg_main"), fg=TM.c("text_secondary"), font=FONTS["body"],
+        ).pack(side="left", padx=(0, 8))
+        self._text_s_labels.append(month_frame.winfo_children()[0])
+
+        months_list = list(calendar.month_name)[1:]  # Jan-Dec (skip empty index 0)
+        self._month_var = tk.StringVar(value=f"{calendar.month_name[self._month]} {self._year}")
+        month_combo = ttk.Combobox(
+            month_frame, textvariable=self._month_var,
+            values=[f"{m} {y}" for y in range(2020, 2030) for m in months_list],
+            state="readonly", width=16, font=FONTS["body"],
+        )
+        month_combo.pack(side="left")
+        month_combo.bind("<<ComboboxSelected>>", lambda _: self._on_month_change())
+
         ttk.Button(
             ctrl_frame, text=f"🔄{_ICON_SP} Refresh",
             style="Secondary.TButton", command=self.refresh

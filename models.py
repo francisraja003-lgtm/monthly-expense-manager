@@ -41,12 +41,10 @@ class Expense:
 
 @dataclass
 class Budget:
-    """Represents a monthly budget for a specific category and month."""
+    """Represents a monthly budget for a specific category."""
 
     category: str
     monthly_limit: float
-    year: int = 0       # budget year (e.g., 2026)
-    month: int = 0      # budget month (1-12)
     user_id: int = 0    # FK → users.id
     id: Optional[int] = field(default=None)
 
@@ -56,10 +54,6 @@ class Budget:
             raise ValueError("Budget limit cannot be negative.")
         if not self.category.strip():
             raise ValueError("Category cannot be empty.")
-        if not (1 <= self.month <= 12):
-            raise ValueError("Month must be between 1 and 12.")
-        if self.year < 2000 or self.year > 2100:
-            raise ValueError("Year must be between 2000 and 2100.")
 
 
 # Default expense categories used throughout the app

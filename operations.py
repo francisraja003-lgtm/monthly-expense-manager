@@ -294,80 +294,55 @@ def export_to_csv(user_id: int, filepath: str) -> int:
 # ===========================================================================
 
 def upsert_budget(budget: Budget) -> None:
-    """Insert or update the monthly budget for a category/user/month combination."""
+    """Insert or update the monthly budget for a category/user combination."""
     conn = get_connection()
     try:
         with conn:
             conn.execute(
-                "INSERT INTO budgets (user_id, category, year, month, monthly_limit) VALUES (?, ?, ?, ?, ?) "
-                "ON CONFLICT(user_id, category, year, month) DO UPDATE SET monthly_limit=excluded.monthly_limit",
-                (budget.user_id, budget.category, budget.year, budget.month, budget.monthly_limit),
+                "INSERT INTO budgets (user_id, category, monthly_limit) VALUES (?, ?, ?) "
+                "ON CONFLICT(user_id, category) DO UPDATE SET monthly_limit=excluded.monthly_limit",
+                (budget.user_id, budget.category, budget.monthly_limit),
             )
     finally:
         conn.close()
 
 
-def get_all_budgets(user_id: int, year: int = 0, month: int = 0) -> List[Budget]:
-    """
-    Retrieve budget records for *user_id*.
-    If year and month are provided, filter by those specific months.
-    Otherwise, return budgets for current month.
-    """
-    from datetime import date
-    
-    if year == 0 or month == 0:
-        today = date.today()
-        year = today.year
-        month = today.month
-    
+def get_all_budgets(user_id: int) -> List[Budget]:
+    """Retrieve all budget records for *user_id*."""
     conn = get_connection()
     try:
         rows = conn.execute(
-            "SELECT id, user_id, category, year, month, monthly_limit FROM budgets "
-            "WHERE user_id=? AND year=? AND month=? ORDER BY category",
-            (user_id, year, month),
+            "SELECT id, user_id, category, monthly_limit FROM budgets "
+            "WHERE user_id=? ORDER BY category",
+            (user_id,),
         ).fetchall()
         return [_row_to_budget(r) for r in rows]
     finally:
         conn.close()
 
 
-def get_budget_for_category(user_id: int, category: str, year: int = 0, month: int = 0) -> Optional[Budget]:
-    """Fetch the budget record for a single category/user/month."""
-    from datetime import date
-    
-    if year == 0 or month == 0:
-        today = date.today()
-        year = today.year
-        month = today.month
-    
+def get_budget_for_category(user_id: int, category: str) -> Optional[Budget]:
+    """Fetch the budget record for a single category/user."""
     conn = get_connection()
     try:
         row = conn.execute(
-            "SELECT id, user_id, category, year, month, monthly_limit FROM budgets "
-            "WHERE user_id=? AND category=? AND year=? AND month=?",
-            (user_id, category, year, month),
+            "SELECT id, user_id, category, monthly_limit FROM budgets "
+            "WHERE user_id=? AND category=?",
+            (user_id, category),
         ).fetchone()
         return _row_to_budget(row) if row else None
     finally:
         conn.close()
 
 
-def delete_budget(user_id: int, category: str, year: int = 0, month: int = 0) -> bool:
-    """Remove the budget for a category/user/month. Returns True if deleted."""
-    from datetime import date
-    
-    if year == 0 or month == 0:
-        today = date.today()
-        year = today.year
-        month = today.month
-    
+def delete_budget(user_id: int, category: str) -> bool:
+    """Remove the budget for a category/user. Returns True if deleted."""
     conn = get_connection()
     try:
         with conn:
             cursor = conn.execute(
-                "DELETE FROM budgets WHERE user_id=? AND category=? AND year=? AND month=?",
-                (user_id, category, year, month),
+                "DELETE FROM budgets WHERE user_id=? AND category=?",
+                (user_id, category),
             )
             return cursor.rowcount > 0
     finally:
@@ -394,7 +369,5 @@ def _row_to_budget(row: sqlite3.Row) -> Budget:
         id=row["id"],
         user_id=row["user_id"],
         category=row["category"],
-        year=row["year"],
-        month=row["month"],
         monthly_limit=row["monthly_limit"],
     )

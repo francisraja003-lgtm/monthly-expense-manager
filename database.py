@@ -64,10 +64,8 @@ def initialize_db() -> None:
                     id            INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id       INTEGER NOT NULL DEFAULT 0,
                     category      TEXT    NOT NULL,
-                    year          INTEGER NOT NULL,
-                    month         INTEGER NOT NULL,
                     monthly_limit REAL    NOT NULL CHECK(monthly_limit >= 0),
-                    UNIQUE(user_id, category, year, month)
+                    UNIQUE(user_id, category)
                 )
                 """
             )
@@ -81,8 +79,9 @@ def initialize_db() -> None:
 
 def _migrate_add_user_id(conn: "sqlite3.Connection") -> None:
     """
-    Add user_id, year, and month columns to budgets table when upgrading.
-    Recreate the table to add month/year tracking for per-month budgets.
+    Add user_id column to expenses/budgets tables when upgrading from the
+    pre-auth schema (v1).  Also adds the UNIQUE constraint on budgets by
+    recreating the table when needed.
     Safe to call on an already-migrated database (no-op).
     """
     # Check which columns expenses already has
@@ -93,39 +92,56 @@ def _migrate_add_user_id(conn: "sqlite3.Connection") -> None:
         if "user_id" not in exp_cols:
             conn.execute("ALTER TABLE expenses ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0")
 
-        # Rebuild budgets table if needed (add user_id, year, month if missing)
-        if "user_id" not in bud_cols or "year" not in bud_cols or "month" not in bud_cols:
-            # Get current date for default year/month when migrating old budgets
-            from datetime import date
-            today = date.today()
-            current_year = today.year
-            current_month = today.month
-
+        if "user_id" not in bud_cols:
+            # budgets also needs a UNIQUE(user_id, category) constraint.
+            # SQLite can't ADD CONSTRAINT via ALTER TABLE, so we rebuild the table.
             conn.execute(
                 """
-                CREATE TABLE budgets_new (
+                CREATE TABLE IF NOT EXISTS budgets_new (
                     id            INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id       INTEGER NOT NULL DEFAULT 0,
                     category      TEXT    NOT NULL,
-                    year          INTEGER NOT NULL,
-                    month         INTEGER NOT NULL,
                     monthly_limit REAL    NOT NULL CHECK(monthly_limit >= 0),
-                    UNIQUE(user_id, category, year, month)
+                    UNIQUE(user_id, category)
                 )
                 """
             )
-            # Migrate old budgets to current month/year
             conn.execute(
-                f"""
-                INSERT OR IGNORE INTO budgets_new (user_id, category, year, month, monthly_limit)
-                SELECT 
-                    COALESCE(user_id, 0),
-                    category,
-                    {current_year},
-                    {current_month},
-                    monthly_limit
-                FROM budgets
-                """
+                "INSERT OR IGNORE INTO budgets_new (id, user_id, category, monthly_limit) "
+                "SELECT id, 0, category, monthly_limit FROM budgets"
             )
             conn.execute("DROP TABLE budgets")
             conn.execute("ALTER TABLE budgets_new RENAME TO budgets")
+        else:
+            # user_id column already exists — check if the UNIQUE constraint is present.
+            # SQLite stores constraint info in sqlite_master; if the old budgets table
+            # was created without UNIQUE(user_id, category) we must rebuild it.
+            idx_rows = conn.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='index' AND tbl_name='budgets' AND sql LIKE '%user_id%category%'"
+            ).fetchall()
+            # Also check the table CREATE sql for inline UNIQUE
+            tbl_sql = conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='budgets'"
+            ).fetchone()
+            has_unique = bool(idx_rows) or (
+                tbl_sql and "UNIQUE" in tbl_sql[0].upper()
+            )
+            if not has_unique:
+                conn.execute(
+                    """
+                    CREATE TABLE budgets_new (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id       INTEGER NOT NULL DEFAULT 0,
+                        category      TEXT    NOT NULL,
+                        monthly_limit REAL    NOT NULL CHECK(monthly_limit >= 0),
+                        UNIQUE(user_id, category)
+                    )
+                    """
+                )
+                conn.execute(
+                    "INSERT OR IGNORE INTO budgets_new (id, user_id, category, monthly_limit) "
+                    "SELECT id, user_id, category, monthly_limit FROM budgets"
+                )
+                conn.execute("DROP TABLE budgets")
+                conn.execute("ALTER TABLE budgets_new RENAME TO budgets")
