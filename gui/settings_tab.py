@@ -110,7 +110,7 @@ class SettingsTab(ttk.Frame):
             self._month_entry = DateEntry(
                 form_inner,
                 width=20,
-                date_pattern="MMM yyyy",
+                date_pattern="dd/mm/yyyy",
                 state="normal",
                 font=FONTS["body"],
                 background=TM.c("accent"),
@@ -127,7 +127,7 @@ class SettingsTab(ttk.Frame):
             self._month_entry.grid(row=2, column=1, sticky="w", pady=6)
             self._month_var = None
         else:
-            self._month_var = tk.StringVar(value=_date_type.today().strftime("%b %Y"))
+            self._month_var = tk.StringVar(value=_date_type.today().strftime("%d/%m/%Y"))
             ttk.Entry(form_inner, textvariable=self._month_var, font=FONTS["body"], state="readonly").grid(
                 row=2, column=1, sticky="ew", pady=6
             )
