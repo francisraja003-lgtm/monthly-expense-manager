@@ -116,6 +116,8 @@ class AddExpenseTab(ttk.Frame):
         # ---- Date --------------------------------------------------
         self._add_label(self._inner, "Date *", row)
         if HAS_TKCALENDAR:
+            from datetime import date as _date
+            today = _date.today()
             self._date_entry = DateEntry(
                 self._inner,
                 width=20,
@@ -131,7 +133,9 @@ class AddExpenseTab(ttk.Frame):
                 headersbackground=TM.c("bg_sidebar"),
                 headersforeground=TM.c("text_on_accent"),
                 borderwidth=1,
+                maxdate=today,  # Restrict to today as maximum date
             )
+            self._date_entry.set_date(today)
             self._date_entry.grid(row=row, column=1, sticky="w", pady=8)
             self._date_var: Optional[tk.StringVar] = None
         else:
@@ -231,6 +235,23 @@ class AddExpenseTab(ttk.Frame):
         if not ok_date:
             messagebox.showerror("Invalid Date", err_date, parent=self)
             return
+        
+        # Validate that date is not in the future
+        from datetime import datetime, date as _date_type
+        try:
+            selected_date = datetime.strptime(iso_date, "%Y-%m-%d").date()
+            today = _date_type.today()
+            if selected_date > today:
+                messagebox.showerror(
+                    "Future Date Not Allowed",
+                    f"You cannot add expenses for future dates.\n\nToday is {today.strftime('%d/%m/%Y')}.\n"
+                    f"Selected date {selected_date.strftime('%d/%m/%Y')} is in the future.",
+                    parent=self
+                )
+                return
+        except ValueError:
+            messagebox.showerror("Invalid Date", "Could not parse the date.", parent=self)
+            return
 
         try:
             expense = Expense(
@@ -254,11 +275,11 @@ class AddExpenseTab(ttk.Frame):
 
     def _clear_form(self) -> None:
         """Reset all form fields to their defaults."""
+        from datetime import date as _date
         self._amount_var.set("")
         self._category_var.set(DEFAULT_CATEGORIES[0])
         self._desc_var.set("")
         if HAS_TKCALENDAR:
-            from datetime import date as _date
             self._date_entry.set_date(_date.today())
         elif self._date_var:
             self._date_var.set(today_iso())
