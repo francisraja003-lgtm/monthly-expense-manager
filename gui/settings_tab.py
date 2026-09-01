@@ -6,6 +6,13 @@ Theme-reactive via ThemeManager callbacks.
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import Callable, List, Optional
+from datetime import datetime, date as _date_type
+
+try:
+    from tkcalendar import DateEntry
+    HAS_TKCALENDAR = True
+except ImportError:
+    HAS_TKCALENDAR = False
 
 from models import Budget, DEFAULT_CATEGORIES
 from operations import get_all_budgets, upsert_budget, delete_budget
@@ -98,17 +105,44 @@ class SettingsTab(ttk.Frame):
             values=DEFAULT_CATEGORIES, state="readonly", font=FONTS["body"],
         ).grid(row=1, column=1, sticky="ew", pady=6)
 
-        self._lbl(form_inner, "Monthly Limit (\u20b9) *", 2)
+        self._lbl(form_inner, "Month *", 2)
+        if HAS_TKCALENDAR:
+            self._month_entry = DateEntry(
+                form_inner,
+                width=20,
+                date_pattern="MMM yyyy",
+                state="normal",
+                font=FONTS["body"],
+                background=TM.c("accent"),
+                foreground=TM.c("text_on_accent"),
+                selectbackground=TM.c("accent"),
+                selectforeground=TM.c("text_on_accent"),
+                normalbackground=TM.c("bg_card"),
+                normalforeground=TM.c("text_primary"),
+                headersbackground=TM.c("bg_sidebar"),
+                headersforeground=TM.c("text_on_accent"),
+                borderwidth=1,
+            )
+            self._month_entry.set_date(_date_type.today())
+            self._month_entry.grid(row=2, column=1, sticky="w", pady=6)
+            self._month_var = None
+        else:
+            self._month_var = tk.StringVar(value=_date_type.today().strftime("%b %Y"))
+            ttk.Entry(form_inner, textvariable=self._month_var, font=FONTS["body"], state="readonly").grid(
+                row=2, column=1, sticky="ew", pady=6
+            )
+
+        self._lbl(form_inner, "Monthly Limit (\u20b9) *", 3)
         self._limit_var = tk.StringVar()
         _limit_entry = ttk.Entry(form_inner, textvariable=self._limit_var, font=FONTS["body"])
-        _limit_entry.grid(row=2, column=1, sticky="ew", pady=6)
+        _limit_entry.grid(row=3, column=1, sticky="ew", pady=6)
         # Restrict keystrokes: max 9 integer digits + 2 decimal places
         apply_amount_input_limit(_limit_entry)
 
         ttk.Button(
             form_inner, text=f"💾{_ICON_SP} Save Budget", style="Accent.TButton",
             command=self._save_budget,
-        ).grid(row=3, column=0, columnspan=2, sticky="e", pady=(16, 0))
+        ).grid(row=4, column=0, columnspan=2, sticky="e", pady=(16, 0))
 
         # ---- Right: table -----------------------------------------
         self._table_card = tk.Frame(

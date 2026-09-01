@@ -205,7 +205,14 @@ class AddExpenseTab(ttk.Frame):
 
     def _get_date_value(self) -> str:
         if HAS_TKCALENDAR:
-            return self._date_entry.get()
+            # Convert from dd/mm/yyyy to YYYY-MM-DD for database
+            date_str = self._date_entry.get()
+            try:
+                from datetime import datetime
+                parsed = datetime.strptime(date_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+                return parsed
+            except (ValueError, AttributeError):
+                return date_str
         return self._date_var.get() if self._date_var else ""
 
     def _save_expense(self) -> None:
